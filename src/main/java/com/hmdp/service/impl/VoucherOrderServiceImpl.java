@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- *  服务实现类
+ * 服务实现类
  * </p>
  *
  * @author 虎哥
@@ -32,31 +32,31 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Autowired
     private RedisIdWorker redisIdWorker;
 
-    @Transactional(rollbackFor = Exception.class)
+        @Transactional(rollbackFor = Exception.class)
     @Override
     public Result seckillVoucher(Long voucherId) {
         //1.查询优惠券是否存在
         SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
-        if (null==seckillVoucher){
-            Result.fail("优惠券不存在");
+        if (null == seckillVoucher) {
+            return Result.fail("优惠券不存在");
         }
         //2.判断秒杀是否开始
-        if (seckillVoucher.getBeginTime().isAfter(LocalDateTime.now())){
-            Result.fail("秒杀尚未开始");
+        if (seckillVoucher.getBeginTime().isAfter(LocalDateTime.now())) {
+            return Result.fail("秒杀尚未开始");
         }
         //3.判断秒杀是否结束
-        if (seckillVoucher.getEndTime().isBefore(LocalDateTime.now())){
-            Result.fail("秒杀已结束");
+        if (seckillVoucher.getEndTime().isBefore(LocalDateTime.now())) {
+            return Result.fail("秒杀已结束");
         }
 
         //4.判断库存是否充足
-        if (seckillVoucher.getStock()<1){
-            Result.fail("优惠券已抢光");
+        if (seckillVoucher.getStock() < 1) {
+            return Result.fail("优惠券已抢光");
         }
         //5.扣减库存
-        boolean success = seckillVoucherService.update().setSql("stock = stock - 1").eq("voucher_id", voucherId).update();
-        if (!success){
-            Result.fail("库存不足");
+        boolean success = seckillVoucherService.update().setSql("stock = stock - 1").eq("voucher_id", voucherId).gt("stock",0).update();
+        if (!success) {
+            return Result.fail("库存不足");
         }
 
         //6.创建订单
