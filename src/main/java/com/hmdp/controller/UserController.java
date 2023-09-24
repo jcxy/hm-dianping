@@ -16,9 +16,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import static com.hmdp.utils.RedisConstants.LOGIN_CODE_KEY;
+import static com.hmdp.utils.RedisConstants.LOGIN_USER_KEY;
 
 /**
  * <p>
@@ -76,9 +78,15 @@ public class UserController {
      * @return 无
      */
     @PostMapping("/logout")
-    public Result logout(){
-        // TODO 实现登出功能
-        return Result.fail("功能未完成");
+    public Result logout(HttpServletRequest request){
+        //删除token信息
+        // 1.获取请求头中的token
+        String token = request.getHeader("authorization");
+        // 2.基于TOKEN获取redis中的用户
+        String key = LOGIN_USER_KEY+token;
+        stringRedisTemplate.delete(key);
+        UserHolder.removeUser();
+        return Result.ok();
     }
 
     @GetMapping("/me")
