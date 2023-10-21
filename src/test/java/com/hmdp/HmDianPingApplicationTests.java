@@ -13,13 +13,20 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisGeoCommands;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import javax.annotation.Resource;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @SpringBootTest
 @Slf4j
@@ -35,6 +42,9 @@ public class HmDianPingApplicationTests {
 
     @Autowired
     private RedissonClient redissonClient;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     private RLock lock;
 
@@ -100,6 +110,28 @@ public class HmDianPingApplicationTests {
         }finally {
             log.info("释放锁，2");
             lock.unlock();
+        }
+    }
+
+    /**
+     * 按类型导入商户地理坐标到redis
+     */
+    @Test
+    public void loadShopData(){
+        //1.查询店铺信息
+        List<Shop> list = shopService.list();
+        //2.把店铺ID分组
+        Map<Long, List<Shop>> shopTypeGroup = list.stream().collect(Collectors.groupingBy(Shop::getTypeId));
+        for (Map.Entry<Long, List<Shop>> entry : shopTypeGroup.entrySet()) {
+            Long key = entry.getKey();
+            List<Shop> value = entry.getValue();
+            List<RedisGeoCommands.GeoLocation<String>> locations = new ArrayList<>(value.size());
+            //3.分批写入redis
+            for (Shop shop : value) {
+//                stringRedisTemplate.opsForGeo().add(RedisConstants.SHOP_GEO_KEY+key,new Point(shop.getX(),shop.getY()),shop.getId().toString());
+                locations.add(new RedisGeoCommands.GeoLocation<>(shop.getId().toString(),new Point(shop.getX(),shop.getY())));
+            }
+            stringRedisTemplate.opsForGeo().add(RedisConstants.SHOP_GEO_KEY+key,locations);
         }
     }
 }
