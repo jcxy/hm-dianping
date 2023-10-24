@@ -49,6 +49,7 @@ public class HmDianPingApplicationTests {
     private RLock lock;
 
     private ExecutorService es = Executors.newFixedThreadPool(500);
+
     @Test
     public void testSaveShop() throws Exception {
 //        shopService.saveShop2Redis(1L,10L);
@@ -60,54 +61,55 @@ public class HmDianPingApplicationTests {
     public void redisIdWorkerTest() throws InterruptedException {
         //多线程异步，用CountDownLatch计时
         CountDownLatch countDownLatch = new CountDownLatch(300);
-        Runnable task = ()->{
-            for (int i = 0;i<100;i++){
-            long orderId = redisIdWorker.nexId("order");
-            System.out.println(orderId);
+        Runnable task = () -> {
+            for (int i = 0; i < 100; i++) {
+                long orderId = redisIdWorker.nexId("order");
+                System.out.println(orderId);
             }
             countDownLatch.countDown();
         };
         long begin = System.currentTimeMillis();
-        for (int i = 0;i<300;i++){
+        for (int i = 0; i < 300; i++) {
             es.submit(task);
         }
         countDownLatch.await();
         long end = System.currentTimeMillis();
-        System.out.println("time:"+(end - begin));
+        System.out.println("time:" + (end - begin));
     }
 
     @BeforeEach
-    public  void setUp(){
-        lock =  redissonClient.getLock("lock");
+    public void setUp() {
+        lock = redissonClient.getLock("lock");
     }
+
     /**
      * redisson可重入测试验证
      */
     @Test
     public void method1() throws InterruptedException {
-        boolean isLock = lock.tryLock(1L,TimeUnit.SECONDS);
-        if (!isLock){
+        boolean isLock = lock.tryLock(1L, TimeUnit.SECONDS);
+        if (!isLock) {
             log.error("获取锁失败");
             return;
         }
         try {
             log.info("获取锁成功，1");
             method2();
-        }finally {
+        } finally {
             log.info("释放锁，1");
             lock.unlock();
         }
     }
 
-    public void method2(){
+    public void method2() {
         boolean isLock = lock.tryLock();
-        if (!isLock){
+        if (!isLock) {
             log.info("获取锁失败，2");
             return;
         }
         try {
             log.info("获取锁成功，2");
-        }finally {
+        } finally {
             log.info("释放锁，2");
             lock.unlock();
         }
@@ -117,7 +119,7 @@ public class HmDianPingApplicationTests {
      * 按类型导入商户地理坐标到redis
      */
     @Test
-    public void loadShopData(){
+    public void loadShopData() {
         //1.查询店铺信息
         List<Shop> list = shopService.list();
         //2.把店铺ID分组
@@ -129,9 +131,26 @@ public class HmDianPingApplicationTests {
             //3.分批写入redis
             for (Shop shop : value) {
 //                stringRedisTemplate.opsForGeo().add(RedisConstants.SHOP_GEO_KEY+key,new Point(shop.getX(),shop.getY()),shop.getId().toString());
-                locations.add(new RedisGeoCommands.GeoLocation<>(shop.getId().toString(),new Point(shop.getX(),shop.getY())));
+                locations.add(new RedisGeoCommands.GeoLocation<>(shop.getId().toString(), new Point(shop.getX(), shop.getY())));
             }
-            stringRedisTemplate.opsForGeo().add(RedisConstants.SHOP_GEO_KEY+key,locations);
+            stringRedisTemplate.opsForGeo().add(RedisConstants.SHOP_GEO_KEY + key, locations);
         }
+    }
+
+    @Test
+    public void hyperLogLogTest() {
+        String[] values = new String[1000];
+        int j = 0;
+        for (int i = 0; i < 1000000; i++) {
+            j = i % 1000;
+            values[j] = "user_" + i;
+            if (j == 999) {
+                //发送到redis
+                stringRedisTemplate.opsForHyperLogLog().add("hl2", values);
+            }
+        }
+        //统计数量
+        Long hl2 = stringRedisTemplate.opsForHyperLogLog().size("hl2");
+        System.out.println("count:" + hl2);
     }
 }
