@@ -39,7 +39,7 @@ import static com.hmdp.utils.SystemConstants.USER_NICK_NAME_PREFIX;
  * 服务实现类
  * </p>
  *
- * @author 虎哥
+ * @author CVToolMan
  * @since 2021-12-22
  */
 @Service
